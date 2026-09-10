@@ -20,7 +20,7 @@ import main
 import triage_classifier_groq
 import triage_questionario as tq
 
-st.set_page_config(page_title="Triage & Instradamento", page_icon="🏥", layout="centered")
+st.set_page_config(page_title="Triage & Instradamento", layout="centered")
 
 COLORI_CODICE = {
     "ROSSO": "#d62728",
@@ -40,7 +40,7 @@ def badge_codice(codice: str):
     )
 
 
-st.title("🏥 Dove devo andare?")
+st.title("Dove devo andare?")
 st.caption(
     "Compila la valutazione (rapida con l'AI, oppure il questionario preciso) "
     "e ricevi il codice di gravità e l'ospedale/farmacia consigliati."
@@ -51,9 +51,17 @@ if "risultato_triage" not in st.session_state:
 
 # --- Scelta modalità e indirizzo -------------------------------------------
 
+MODALITA_AI = "ai"
+MODALITA_QUESTIONARIO = "questionario"
+
 modalita = st.radio(
     "Come vuoi valutare la situazione?",
-    ["⚡ Valutazione rapida (AI)", "📋 Questionario preciso (più lento, più accurato)"],
+    [MODALITA_AI, MODALITA_QUESTIONARIO],
+    format_func=lambda v: (
+        "Valutazione rapida (AI)"
+        if v == MODALITA_AI
+        else "Questionario preciso (più lento, più accurato)"
+    ),
     help=(
         "La modalità rapida usa un'AI per stimare il codice da una breve "
         "descrizione dei sintomi: comoda quando serve fare in fretta. "
@@ -67,7 +75,7 @@ indirizzo = st.text_input(
     placeholder="Es. Via Monginevro, Guidonia",
 )
 
-if modalita.startswith("⚡"):
+if modalita == MODALITA_AI:
     if not os.environ.get("GROQ_API_KEY"):
         st.warning(
             "GROQ_API_KEY non è impostata: la valutazione rapida userà un "
@@ -192,7 +200,7 @@ if risultato:
             )
 
             if raccomandazioni.get("messaggio_prioritario"):
-                st.error(f"🚨 {raccomandazioni['messaggio_prioritario']}")
+                st.error(raccomandazioni["messaggio_prioritario"])
 
             if raccomandazioni["fuori_raggio"] and not raccomandazioni.get("messaggio_prioritario"):
                 st.warning(
@@ -209,7 +217,7 @@ if risultato:
                 punti_mappa.append({"lat": o["lat"], "lon": o["lon"]})
                 riga = f"- **{o['nome']}** ({o['comune']}) — {o['distanza_km']} km, {o['in_attesa_codice']} pazienti in attesa con lo stesso codice"
                 if o.get("motivo"):
-                    riga += f"\n  \n  ℹ️ {o['motivo']}"
+                    riga += f"\n  \n  {o['motivo']}"
                 st.markdown(riga)
 
             if raccomandazioni.get("farmacie_consigliate"):
