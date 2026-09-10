@@ -24,10 +24,11 @@ def geocode_address(address: str):
         print(f"Errore durante la geocodifica: {e}")
         return None
 
-# Esempio d'uso:
-indirizzo = "Piazza di Spagna 1, Roma"
+if __name__ == "__main__":
+    # Esempio d'uso:
+    indirizzo = "Piazza di Spagna 1, Roma"
 
-# sant andrea : 41.98276097416429, 12.470352581170618
-# ingegneria : 41.854855461179724, 12.624166049692603
+    # sant andrea : 41.98276097416429, 12.470352581170618
+    # ingegneria : 41.854855461179724, 12.624166049692603
 
-print(geocode_address(indirizzo))
+    print(geocode_address(indirizzo))
