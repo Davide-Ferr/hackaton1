@@ -12,6 +12,12 @@ from funzioni_utilita.geolocalizzazione import geocode_address
 # viene usato come dato realistico di partenza, con lo schema (colonne) di
 # quello che sarebbe un feed live.
 df_farmacie = pd.read_csv("elenco_farmacie.csv")
+# Il CSV contiene una riga per ogni periodo di validità di una farmacia (es.
+# cambi di titolarità nel tempo): la stessa farmacia (stesso indirizzo/
+# coordinate) può comparire più volte con DATAFINEVALIDITA diversa. Teniamo
+# solo la riga "attiva" (DATAFINEVALIDITA == "-", cioè senza data di fine),
+# altrimenti la stessa farmacia verrebbe consigliata più volte nei risultati.
+df_farmacie = df_farmacie[df_farmacie["DATAFINEVALIDITA"] == "-"].reset_index(drop=True)
 df_ospedali = pd.read_csv("elenco_ospedali.csv")
 
 # Km massimi di default che un paziente è disposto/in grado di percorrere in
