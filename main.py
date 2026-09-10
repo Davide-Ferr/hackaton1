@@ -21,9 +21,9 @@ df_ospedali = pd.read_csv("elenco_ospedali.csv")
 # regola di fallback usata quando nessun ospedale rientra nel raggio).
 KM_MASSIMI = {
     "ROSSO": 0.0,
-    "GIALLO": 15.0,
-    "VERDE": 30.0,
-    "BIANCO": 50.0,
+    "GIALLO": 30.0,
+    "VERDE": 60.0,
+    "BIANCO": 100.0,
 }
 CODICI_INSTRADAMENTO_VALIDI = list(KM_MASSIMI.keys())
 

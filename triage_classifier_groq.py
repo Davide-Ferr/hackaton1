@@ -23,20 +23,13 @@ def _get_client() -> Groq:
     return _client
 
 
-CODICI_VALIDI = ["ROSSO", "ARANCIONE", "GIALLO", "VERDE", "BIANCO"]
-PUNTEGGIO = {"ROSSO": 5, "ARANCIONE": 4, "GIALLO": 3, "VERDE": 2, "BIANCO": 1}
+CODICI_VALIDI = ["ROSSO", "GIALLO", "VERDE", "BIANCO"]
+PUNTEGGIO = {"ROSSO": 4, "GIALLO": 3, "VERDE": 2, "BIANCO": 1}
 
-# Il resto del sistema (dati ospedali/CSV) ragiona sullo schema classico a 4
-# codici (ROSSO/GIALLO/VERDE/BIANCO). L'AI può restituire anche ARANCIONE
-# (più granulare); lo normalizziamo prudenzialmente su ROSSO per
-# l'instradamento, in modo che tutto il resto della pipeline resti coerente.
-NORMALIZZAZIONE_CODICE_INSTRADAMENTO = {
-    "ROSSO": "ROSSO",
-    "ARANCIONE": "ROSSO",
-    "GIALLO": "GIALLO",
-    "VERDE": "VERDE",
-    "BIANCO": "BIANCO",
-}
+# Stesso schema a 4 codici usato dal questionario e dai dati ospedali/CSV:
+# codice_triage e codice_instradamento coincidono sempre, non serve più
+# nessuna normalizzazione (ARANCIONE è stato rimosso da entrambe le
+# modalità di valutazione per restare sui soli 4 codici standard).
 
 EMERGENCY_KEYWORDS = [
     r"non respir", r"dolore al petto", r"dolore toracico",
@@ -53,23 +46,23 @@ def _check_emergency_override(sintomi: str) -> bool:
 def valuta_caso_clinico(sintomi_paziente: str) -> dict:
     """
     Prende in input la descrizione dei sintomi e restituisce un dizionario
-    con codice_triage (schema a 5 livelli), punteggio, motivazione e
-    codice_instradamento (schema a 4 livelli, quello usato per cercare gli
-    ospedali).
+    con codice_triage, punteggio, motivazione e codice_instradamento (stesso
+    schema a 4 codici — ROSSO/GIALLO/VERDE/BIANCO — usato per cercare gli
+    ospedali; qui coincide sempre con codice_triage).
     """
     if _check_emergency_override(sintomi_paziente):
         codice = "ROSSO"
         return {
             "codice_triage": codice,
-            "codice_instradamento": NORMALIZZAZIONE_CODICE_INSTRADAMENTO[codice],
+            "codice_instradamento": codice,
             "punteggio": PUNTEGGIO[codice],
             "motivazione": "Sintomi compatibili con emergenza immediata (rilevati da controllo di sicurezza).",
         }
 
     prompt = f"""Agisci come un assistente di pre-triage. Analizza i seguenti sintomi del paziente: "{sintomi_paziente}".
 Restituisci un JSON puro con esattamente questa struttura:
-{{"codice_triage": "ROSSO oppure ARANCIONE oppure GIALLO oppure VERDE oppure BIANCO", "motivazione": "spiegazione sintetica"}}
-Usa esclusivamente uno di quei 5 valori per codice_triage, nessun altro."""
+{{"codice_triage": "ROSSO oppure GIALLO oppure VERDE oppure BIANCO", "motivazione": "spiegazione sintetica"}}
+Usa esclusivamente uno di quei 4 valori per codice_triage, nessun altro."""
 
     try:
         completion = _get_client().chat.completions.create(
@@ -90,7 +83,7 @@ Usa esclusivamente uno di quei 5 valori per codice_triage, nessun altro."""
 
         return {
             "codice_triage": codice,
-            "codice_instradamento": NORMALIZZAZIONE_CODICE_INSTRADAMENTO[codice],
+            "codice_instradamento": codice,
             "punteggio": PUNTEGGIO[codice],
             "motivazione": risposta.get("motivazione", ""),
         }
@@ -99,7 +92,7 @@ Usa esclusivamente uno di quei 5 valori per codice_triage, nessun altro."""
         codice = "GIALLO"
         return {
             "codice_triage": codice,
-            "codice_instradamento": NORMALIZZAZIONE_CODICE_INSTRADAMENTO[codice],
+            "codice_instradamento": codice,
             "punteggio": PUNTEGGIO[codice],
             "motivazione": f"Errore, colore prudenziale assegnato: {e}",
         }
