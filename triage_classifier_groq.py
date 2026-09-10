@@ -3,10 +3,40 @@ import re
 import json
 from groq import Groq
 
-client = Groq(api_key=os.environ["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"])  # imposta la variabile d'ambiente, non scrivere mai la chiave qui
+# La chiave NON va mai scritta qui nel codice. Va impostata come variabile
+# d'ambiente GROQ_API_KEY (es. in un file .env locale, mai committato — vedi
+# .env.example) e letta da qui.
+_client = None
+
+
+def _get_client() -> Groq:
+    global _client
+    if _client is None:
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "GROQ_API_KEY non impostata. Esporta la variabile d'ambiente "
+                "(es. `export GROQ_API_KEY=...` oppure un file .env) con una "
+                "chiave valida generata su https://console.groq.com/keys."
+            )
+        _client = Groq(api_key=api_key)
+    return _client
+
 
 CODICI_VALIDI = ["ROSSO", "ARANCIONE", "GIALLO", "VERDE", "BIANCO"]
 PUNTEGGIO = {"ROSSO": 5, "ARANCIONE": 4, "GIALLO": 3, "VERDE": 2, "BIANCO": 1}
+
+# Il resto del sistema (dati ospedali/CSV) ragiona sullo schema classico a 4
+# codici (ROSSO/GIALLO/VERDE/BIANCO). L'AI può restituire anche ARANCIONE
+# (più granulare); lo normalizziamo prudenzialmente su ROSSO per
+# l'instradamento, in modo che tutto il resto della pipeline resti coerente.
+NORMALIZZAZIONE_CODICE_INSTRADAMENTO = {
+    "ROSSO": "ROSSO",
+    "ARANCIONE": "ROSSO",
+    "GIALLO": "GIALLO",
+    "VERDE": "VERDE",
+    "BIANCO": "BIANCO",
+}
 
 EMERGENCY_KEYWORDS = [
     r"non respir", r"dolore al petto", r"dolore toracico",
@@ -22,13 +52,17 @@ def _check_emergency_override(sintomi: str) -> bool:
 
 def valuta_caso_clinico(sintomi_paziente: str) -> dict:
     """
-    Prende in input la descrizione dei sintomi e restituisce
-    un dizionario con codice_triage, punteggio e motivazione.
+    Prende in input la descrizione dei sintomi e restituisce un dizionario
+    con codice_triage (schema a 5 livelli), punteggio, motivazione e
+    codice_instradamento (schema a 4 livelli, quello usato per cercare gli
+    ospedali).
     """
     if _check_emergency_override(sintomi_paziente):
+        codice = "ROSSO"
         return {
-            "codice_triage": "ROSSO",
-            "punteggio": PUNTEGGIO["ROSSO"],
+            "codice_triage": codice,
+            "codice_instradamento": NORMALIZZAZIONE_CODICE_INSTRADAMENTO[codice],
+            "punteggio": PUNTEGGIO[codice],
             "motivazione": "Sintomi compatibili con emergenza immediata (rilevati da controllo di sicurezza).",
         }
 
@@ -38,8 +72,8 @@ Restituisci un JSON puro con esattamente questa struttura:
 Usa esclusivamente uno di quei 5 valori per codice_triage, nessun altro."""
 
     try:
-        completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        completion = _get_client().chat.completions.create(
+            model="openai/gpt-oss-120b",
             messages=[
                 {"role": "system", "content": "Sei un assistente di pre-triage che restituisce solo JSON validi."},
                 {"role": "user", "content": prompt},
@@ -56,12 +90,19 @@ Usa esclusivamente uno di quei 5 valori per codice_triage, nessun altro."""
 
         return {
             "codice_triage": codice,
+            "codice_instradamento": NORMALIZZAZIONE_CODICE_INSTRADAMENTO[codice],
             "punteggio": PUNTEGGIO[codice],
             "motivazione": risposta.get("motivazione", ""),
         }
 
     except Exception as e:
-        return {"codice_triage": "GIALLO", "punteggio": PUNTEGGIO["GIALLO"], "motivazione": f"Errore, colore prudenziale assegnato: {e}"}
+        codice = "GIALLO"
+        return {
+            "codice_triage": codice,
+            "codice_instradamento": NORMALIZZAZIONE_CODICE_INSTRADAMENTO[codice],
+            "punteggio": PUNTEGGIO[codice],
+            "motivazione": f"Errore, colore prudenziale assegnato: {e}",
+        }
 
 
 if __name__ == "__main__":
