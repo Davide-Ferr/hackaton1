@@ -7,6 +7,7 @@ Avvio: streamlit run app.py
 
 import os
 
+import pandas as pd
 import streamlit as st
 
 try:
@@ -72,7 +73,7 @@ modalita = st.radio(
 
 indirizzo = st.text_input(
     "Indirizzo o posizione attuale",
-    placeholder="Es. Via Monginevro, Guidonia",
+    placeholder="Es. Via Politecnico, 1, Roma",
 )
 
 if modalita == MODALITA_AI:
@@ -208,13 +209,31 @@ if risultato:
                     "il più vicino in assoluto, indipendentemente dalla fila."
                 )
 
+            # Colori/dimensioni diversi per distinguere sulla mappa la propria
+            # posizione dagli ospedali e dalle farmacie (altrimenti con
+            # st.map tutti i punti sarebbero identici e la propria posizione
+            # si perderebbe in mezzo agli altri, specie con molti risultati).
             punti_mappa = [
-                {"lat": raccomandazioni["utente_lat"], "lon": raccomandazioni["utente_lon"]}
+                {
+                    "lat": raccomandazioni["utente_lat"],
+                    "lon": raccomandazioni["utente_lon"],
+                    "tipo": "La tua posizione",
+                    "colore": "#1E88E5",
+                    "dimensione": 120,
+                }
             ]
 
             st.markdown("**Ospedali consigliati**")
             for o in raccomandazioni["ospedali_consigliati"]:
-                punti_mappa.append({"lat": o["lat"], "lon": o["lon"]})
+                punti_mappa.append(
+                    {
+                        "lat": o["lat"],
+                        "lon": o["lon"],
+                        "tipo": "Ospedale",
+                        "colore": "#D62728",
+                        "dimensione": 50,
+                    }
+                )
                 riga = f"- **{o['nome']}** ({o['comune']}) — {o['distanza_km']} km, {o['in_attesa_codice']} pazienti in attesa con lo stesso codice"
                 if o.get("motivo"):
                     riga += f"\n  \n  {o['motivo']}"
@@ -223,7 +242,17 @@ if risultato:
             if raccomandazioni.get("farmacie_consigliate"):
                 st.markdown("**Farmacie vicine**")
                 for f in raccomandazioni["farmacie_consigliate"]:
-                    punti_mappa.append({"lat": f["lat"], "lon": f["lon"]})
+                    punti_mappa.append(
+                        {
+                            "lat": f["lat"],
+                            "lon": f["lon"],
+                            "tipo": "Farmacia",
+                            "colore": "#2CA02C",
+                            "dimensione": 50,
+                        }
+                    )
                     st.markdown(f"- {f['nome']} — {f['indirizzo']} ({f['distanza_km']} km)")
 
-            st.map(punti_mappa, size=40)
+            st.caption("Blu = la tua posizione · Rosso = ospedali · Verde = farmacie")
+            df_mappa = pd.DataFrame(punti_mappa)
+            st.map(df_mappa, latitude="lat", longitude="lon", color="colore", size="dimensione")

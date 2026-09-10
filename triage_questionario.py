@@ -57,7 +57,12 @@ SINTOMI_PRINCIPALI = {
     "difficolta_respiratoria": ("Difficoltà respiratoria (anche lieve/intermittente)", 3),
     "trauma_arto": ("Trauma con impotenza funzionale (non riesci a muovere/caricare l'arto)", 2),
     "sintomi_da_calore": ("Sintomi da calore (crampi, sudorazione profusa, debolezza)", 2),
-    "altro": ("Altro", 1),
+    "mal_di_testa": ("Mal di testa", 1),
+    "vertigini": ("Vertigini o capogiri", 2),
+    "dolore_articolare_muscolare": ("Dolore articolare o muscolare (non da trauma acuto)", 1),
+    "ferita_da_medicare": ("Ferita/taglio che potrebbe necessitare punti o medicazione", 2),
+    "eruzione_cutanea": ("Eruzione cutanea o reazione allergica lieve (senza difficoltà respiratoria)", 2),
+    "mal_di_gola": ("Mal di gola", 1),
 }
 
 FATTORI_RISCHIO = {
@@ -77,7 +82,7 @@ class QuestionarioRisposte(BaseModel):
     impatto_funzionale: List[str] = Field(default_factory=list)  # chiavi di IMPATTO_FUNZIONALE segnate "sì"
     insorgenza_improvvisa: bool = False  # comparso in minuti/ore, non gradualmente
     in_peggioramento: bool = False  # sta peggiorando rispetto a quando è iniziato
-    sintomo_principale: str = "altro"  # chiave di SINTOMI_PRINCIPALI
+    sintomo_principale: str = "febbre"  # chiave di SINTOMI_PRINCIPALI
     eta: Optional[int] = None
     fattori_rischio: List[str] = Field(default_factory=list)  # chiavi di FATTORI_RISCHIO segnate "sì"
     frequenza_cardiaca: Optional[int] = None  # bpm, solo se misurata
@@ -144,7 +149,7 @@ def valuta_questionario(risposte: QuestionarioRisposte) -> dict:
     punti += 2 if risposte.insorgenza_improvvisa else 0
     punti += 2 if risposte.in_peggioramento else 0
 
-    _, punti_sintomo = SINTOMI_PRINCIPALI.get(risposte.sintomo_principale, SINTOMI_PRINCIPALI["altro"])
+    _, punti_sintomo = SINTOMI_PRINCIPALI.get(risposte.sintomo_principale, ("Non specificato", 1))
     punti += punti_sintomo
 
     punti += _punti_eta(risposte.eta)
