@@ -43,35 +43,40 @@ def get_raccomandazioni(user: UserContext, max_results: int = 5):
         # 2. Aggiungi ospedali con poca occupazione/attesa per codici bassi
         for _, o in df_ospedali.iterrows():
             dist = calcola_distanza_km(user_coords, (o['LATITUDINE'], o['LONGITUDINE']))
-            in_attesa = o['BIANCO_ATT'] + o['VERDE_ATT']
-            
-            # Formula di score: dà peso sia alla distanza che al carico di attesa
-            score = (dist * 1.5) + (in_attesa * 0.5)
-            
-            risultati.append({
-                "tipo": "ospedale",
-                "nome": o['ISTITUTO'],
-                "distanza_km": round(dist, 2),
-                "in_attesa_codice": in_attesa,
-                "score": score
-            })
+            if dist <= user.range_ricerca:
+
+                in_attesa = o['BIANCO_ATT'] + o['VERDE_ATT']
+                
+                # Formula di score: dà peso sia alla distanza che al carico di attesa
+                score = (dist * 1.5) + (in_attesa * 0.5)
+                
+                risultati.append({
+                    "tipo": "ospedale",
+                    "nome": o['ISTITUTO'],
+                    "distanza_km": round(dist, 2),
+                    "in_attesa_codice": in_attesa,
+                    "score": score
+                })
 
     # CASO 2: Urgenza Media/Alta (Codice Giallo / Rosso)
     else:
         for _, o in df_ospedali.iterrows():
             dist = calcola_distanza_km(user_coords, (o['LATITUDINE'], o['LONGITUDINE']))
+
+            if dist <= user.range_ricerca:
+
             
             # Per codici alti la distanza ha peso primario, ma l'occupazione influisce sui tempi di presa in carico
-            attesa_specifica = o[f'{user.urgenza.upper()}_ATT']
-            score = (dist * 3.0) + (attesa_specifica * 1.0)
+                attesa_specifica = o[f'{user.urgenza.upper()}_ATT']
+                score = (dist * 3.0) + (attesa_specifica * 1.0)
 
-            risultati.append({
-                "tipo": "ospedale",
-                "nome": o['ISTITUTO'],
-                "distanza_km": round(dist, 2),
-                "in_attesa_codice": attesa_specifica,
-                "score": score
-            })
+                risultati.append({
+                    "tipo": "ospedale",
+                    "nome": o['ISTITUTO'],
+                    "distanza_km": round(dist, 2),
+                    "in_attesa_codice": attesa_specifica,
+                    "score": score
+                })
 
     # Ordina per score crescente e restituisce i primi N risultati
     ospedali_filtrati = [r for r in risultati if r['tipo'] == 'ospedale']
